@@ -11,7 +11,7 @@ from mcp.client.streamable_http import streamablehttp_client
 
 async def main():
     base = os.getenv("OLLAMA_URL", "http://ollama:11434")
-    chat_model = os.getenv("CHAT_MODEL", "qwen3.6:27b")
+    chat_model = os.getenv("CHAT_MODEL", "qwen3:4b")
     embed_model = os.getenv("EMBED_MODEL", "qwen3-embedding:0.6b")
     context = int(os.getenv("CHAT_CONTEXT", "4096"))
     async with httpx.AsyncClient(base_url=base, timeout=600) as client:

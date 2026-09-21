@@ -8,9 +8,10 @@ x-app: &app
     PGPASSWORD: ${POSTGRES_PASSWORD:-rag_local_demo}
     OLLAMA_URL: http://ollama:11434
     MCP_URL: http://mcp-server:8001/mcp
-    CHAT_MODEL: ${CHAT_MODEL:-qwen3.6:27b}
+    CHAT_MODEL: ${CHAT_MODEL:-qwen3:4b}
     EMBED_MODEL: ${EMBED_MODEL:-qwen3-embedding:0.6b}
     CHAT_CONTEXT: ${CHAT_CONTEXT:-4096}
+    CHAT_THINK: ${CHAT_THINK:-false}
     FILE_ROOT: /data/files
     EMBED_DIM: '1024'
   volumes:

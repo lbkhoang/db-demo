@@ -15,7 +15,21 @@ docker compose exec app python -m scripts.smoke
 
 Mở http://localhost:8000/docs. Có thể upload trực tiếp qua Swagger ở `POST /documents`, thêm version qua `POST /documents/{document_id}/versions`, xem trạng thái qua `GET /jobs/{job_id}` và nội dung qua `GET /versions/{version_id}/pages`.
 
-`/health/ready` kiểm tra database, MCP tool và Ollama API; HTTP 200 ở đây chưa có nghĩa model đã tải hoặc chat RAG đã sẵn sàng. Chưa có frontend chat.
+`/health/ready` kiểm tra database, MCP tool và Ollama API; HTTP 200 ở đây chưa có nghĩa model đã tải. Frontend chat ở http://localhost:8000.
+
+## Chat và search
+
+```powershell
+docker compose exec ollama ollama pull qwen3:4b
+docker compose exec app python -m scripts.test_search_chat
+docker compose exec app python -m scripts.test_search_chat --chat
+```
+
+Ở giao diện, chọn tài liệu hoặc để tất cả bản ready mới nhất. Hỏi “Theo HR-01, nhân viên được nghỉ phép bao nhiêu ngày mỗi năm?”. Muốn so sánh: chọn tài liệu HR, giữ Ctrl chọn hai version, bật “So sánh hai phiên bản”, rồi hỏi “HR-01 và HR-02 thay đổi thế nào?”. Mở từng nguồn bên dưới câu trả lời để xem file, version, trang và đoạn văn.
+
+API `POST /search` nhận query/mode/version_ids/top_k. `POST /chat` nhận message/conversation_id/mode/version_ids/compare và trả SSE status/delta/done/error. Chỉ sự kiện done chứa câu trả lời cuối đã kiểm tra citation; nếu có error hoặc mất kết nối, lượt chat chưa hoàn tất. `GET /conversations/{id}/messages` đọc lịch sử đã lưu. UI giữ conversation ID trong phiên trang hiện tại; reload bắt đầu phiên mới, lịch sử cũ vẫn trong DB.
+
+Mặc định `CHAT_THINK=false`, context 4096 và một lượt chat đồng thời để phù hợp demo. Có thể bật thinking trong `.env` rồi recreate app; thời gian và context phải đo lại. Vector phù hợp câu hỏi ngữ nghĩa; mã ngắn như HR-01 nên dùng keyword/hybrid. Benchmark chat dùng model thật, không mock; test tạo các hội thoại kiểm thử trong DB.
 
 ## Upload và dữ liệu demo
 
@@ -40,7 +54,7 @@ Các lệnh sau tải model vào volume riêng của project; lần đầu có t
 
 ```powershell
 docker compose exec ollama ollama pull qwen3-embedding:0.6b
-docker compose exec ollama ollama pull qwen3.6:27b
+docker compose exec ollama ollama pull qwen3:4b
 docker compose exec ollama ollama list
 docker compose exec app python -m scripts.benchmark
 docker compose exec ollama ollama ps

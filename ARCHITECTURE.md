@@ -31,7 +31,7 @@ Chỉ app bind localhost:8000. Database, MCP và Ollama ở mạng Compose nội
 
 ## Model và giới hạn tài nguyên
 
-- `CHAT_MODEL=qwen3.6:27b` là ứng viên benchmark, chưa được xác nhận phù hợp máy đích. Model mặc định được niêm yết khoảng 18 GB, có thể phải offload RAM. Cho phép đổi tag qua `.env` sau benchmark; không tự đổi sang họ model khác.
+- `CHAT_MODEL=qwen3:4b` đang được kiểm thử trên máy đích. Có thể phải offload RAM; không tự đổi sang họ model khác. `CHAT_THINK=false` mặc định để giảm độ trễ demo; có thể bật qua `.env`, nhưng phải đánh giá lại token/context và thời gian phản hồi.
 - `EMBED_MODEL=qwen3-embedding:0.6b`, dùng cùng model/cấu hình cho query và document. Schema dùng vector(1024); worker kiểm tra dimension, giá trị hữu hạn và vector khác zero cho từng response, từ chối publish khi không khớp.
 - `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`; context chat 4096. Đo độ trễ khi đổi giữa embedding/chat model.
 - Không đặt memory limit WSL tự động; theo dõi RAM thực tế, chừa tài nguyên cho Windows. Không xem dung lượng model là tổng yêu cầu VRAM.
@@ -60,25 +60,25 @@ Mặc định search bản `ready` mới nhất của từng document. Bản m�
 | ingestion_jobs | id, version_id, status, attempts, updated_at, error |
 | conversations/messages | lịch sử, role, content, citations |
 
-Migration 001 tạo extension vector; migration 002 tạo documents, document_versions, pages, chunks và ingestion_jobs. Conversation/messages sẽ triển khai ở task chat. Migration đánh số, checksum, transaction và advisory lock; không phụ thuộc init script chỉ chạy một lần trên volume mới.
+Migration 001 tạo extension vector; migration 002 tạo documents, document_versions, pages, chunks và ingestion_jobs. Migration 003 thêm FTS với unaccent, GIN index, conversations/messages. Migration đánh số, checksum, transaction và advisory lock; không phụ thuộc init script chỉ chạy một lần trên volume mới.
 
 Worker demo chạy đơn bằng PostgreSQL session advisory lock. Khi restart, nó thu hồi job processing bị gián đoạn; chỉ retry tự động tối đa 3 lần. Nếu mất session DB thì tiến trình thoát, Docker khởi động lại và giành lock trước khi xử lý tiếp. Chưa triển khai worker pool/lease heartbeat. API có retry thủ công cho job failed. Giới hạn 20 MiB/file, 200 trang, một triệu ký tự; PDF scan không có text được báo lỗi chưa hỗ trợ OCR.
 
 ## Retrieval và MCP
 
-Tools dự kiến:
+Tools hiện có:
 
 - `list_document_versions(document_id)`.
-- `search_documents(query, mode, document_ids, version_ids, top_k)`.
-- `get_document_pages(version_id, page_numbers)`.
+- `search_documents(query, mode, version_ids, top_k)`.
+- `compare_document_versions(version_ids)` đọc toàn bộ evidence của đúng hai bản cùng tài liệu, tối đa 40 chunks/6500 ký tự.
 
-Task nền tảng cung cấp `system_status` để kiểm tra handshake và database thực sự qua MCP. Các tool truy xuất được thêm khi có schema và ingestion.
+`system_status` tiếp tục kiểm tra handshake và database thực sự qua MCP. REST `GET /versions/{id}/pages` phục vụ đọc trang; chưa expose tool đọc trang riêng.
 
 Vector cosine search và PostgreSQL FTS (`simple`, chuẩn hóa dấu cho tiếng Việt) chạy với cùng bộ lọc version **trước** khi lấy top-k. Hybrid gộp bằng RRF với hằng số khởi điểm 60, deduplicate theo chunk ID. Giữ text gốc để trích dẫn. Với vài chục trang dùng exact vector search; chỉ thêm HNSW khi có dữ liệu/đo đạc chứng minh cần.
 
-FastAPI lấy tool schemas từ MCP, gửi vào Ollama chat; nhận tool calls, validate tên/arguments, gọi MCP rồi trả kết quả về model. Giới hạn vòng gọi (khởi điểm 6), timeout và kích thước context. Nội dung tài liệu được coi là dữ liệu, không phải chỉ thị thực thi. Model không được gọi SQL tùy ý.
+FastAPI xác nhận tool có trên MCP và tạo schema thu gọn cho model: chỉ query được model lựa chọn; mode/version được host khóa theo request người dùng. Chat dùng hai lượt model: chọn một tool truy xuất, rồi sinh câu trả lời streaming với tools bị tắt. Nếu model không gọi tool, host bắt buộc truy xuất và báo `model_called=false` trong kết quả để phân biệt fallback với tool call thật. Timeout tổng 600 giây sau khi giành khóa chat; giới hạn 6500 ký tự evidence và hai message lịch sử, mỗi message tối đa 600 ký tự. Nội dung tài liệu được coi là dữ liệu, không phải chỉ thị thực thi. Model không được gọi SQL tùy ý.
 
-Trả lời đính kèm chunk IDs đã truy xuất; backend xác minh nguồn và dựng citation `file/version/page`. Không đủ bằng chứng thì báo thiếu dữ liệu. UI hiển thị trạng thái gọi tool và nguồn, không yêu cầu xuất chuỗi suy luận nội bộ.
+Trả lời dùng citation `[C123]`; backend xác minh IDs thuộc evidence đã truy xuất và dựng nguồn `file/version/page`. Thiếu citation hoặc có ID không hợp lệ thì thay bằng thông báo thiếu bằng chứng. Đây là kiểm tra nguồn/ID, không phải bộ chứng minh tự động rằng mọi mệnh đề đều đúng. SSE gửi status/delta/done/error; delta là bản tạm, UI thay bằng answer đã kiểm tra ở sự kiện done. UI hiển thị trạng thái gọi tool và nguồn, không xuất chuỗi suy luận nội bộ. Chỉ lưu user/assistant/citations khi lượt chat hoàn tất.
 
 So sánh hai version: lấy bằng chứng riêng từng bản; đối chiếu theo mã chính sách/chủ đề, không giả định số trang giống nhau. Khi yêu cầu toàn bộ thay đổi, đọc toàn bộ hai bản demo thay vì chỉ top-k rồi tuyên bố đầy đủ.
 

@@ -11,6 +11,10 @@ x-app: &app
     CHAT_MODEL: ${CHAT_MODEL:-qwen3.6:27b}
     EMBED_MODEL: ${EMBED_MODEL:-qwen3-embedding:0.6b}
     CHAT_CONTEXT: ${CHAT_CONTEXT:-4096}
+    FILE_ROOT: /data/files
+    EMBED_DIM: '1024'
+  volumes:
+    - files_data:/data/files
 
 services:
   postgres:
@@ -78,6 +82,18 @@ services:
       timeout: 10s
       retries: 10
 
+  worker:
+    <<: *app
+    init: true
+    command: [python, -m, app.worker]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      ollama:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   ollama_data:
+  files_data:

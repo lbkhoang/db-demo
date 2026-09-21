@@ -23,12 +23,21 @@ Quy ước: `[x]` hoàn thành và kiểm tra, `[ ]` chưa hoàn thành.
 - Ollama chưa có model (`models: []`); chưa xác nhận inference, embedding dimension hoặc chất lượng/tốc độ Qwen. Chạy model checkpoint trong [RUNBOOK.md](RUNBOOK.md) là bước tiếp theo.
 - Thư viện đã build: FastAPI 0.141.1, Uvicorn 0.53.0, HTTPX 0.28.1, Psycopg 3.3.6, MCP 1.30.0. Hiện chưa có lockfile đầy đủ.
 
-## T02 — Upload và ingestion
+## T02 — Upload và ingestion (hoàn thành)
 
-- [ ] Schema tài liệu/version/page/chunk/job và unique constraints.
-- [ ] Upload bất biến, cấp version có khóa, trạng thái và retry.
-- [ ] Worker Word → PDF → pages → chunks → embedding.
-- [ ] Kiểm tra dimension embedding; ingest idempotent và bản ready mặc định.
+- [x] Schema tài liệu/version/page/chunk/job và unique constraints.
+- [x] Upload bất biến, cấp version có khóa, trạng thái và retry.
+- [x] Worker Word → PDF → pages → chunks → embedding.
+- [x] Kiểm tra dimension embedding; ingest idempotent và bản ready mặc định.
+
+### Kết quả kiểm tra T02 ngày 2026-09-21
+
+- Git local nhánh `main`, commit khởi tạo `c01f62e`; không cấu hình remote, không push. Thay đổi T02 ở working tree sau commit init.
+- Tải `qwen3-embedding:0.6b` thành công; worker đã tạo vector thực tế 1024 chiều. Qwen3.6 chat benchmark vẫn chưa chạy.
+- `scripts.seed_demo`: cả 4 file `.docx` render và ingest đúng 10 trang, xác minh nội dung tiếng Việt từng trang.
+- `scripts.test_ingestion`: pass với PDF, file rỗng/đuôi không hỗ trợ, upload đồng thời v0.2/v0.3, file hỏng retry tối đa 3 lần, latest-ready không bị bản lỗi thay thế và retry không nhân đôi chunk.
+- Worker chạy đơn bằng session advisory lock, lưu PDF render bên cạnh Word gốc. API upload/status/pages sử dụng được qua Swagger.
+- Sau restart worker và chạy lại seed: vẫn đúng 2 tài liệu, 4 version, 40 trang, 40 chunk; smoke test API/MCP/Ollama pass. Bản sao file mẫu nằm ở `data/demo` (Git ignore).
 
 ## T03 — Search
 
@@ -45,6 +54,6 @@ Quy ước: `[x]` hoàn thành và kiểm tra, `[ ]` chưa hoàn thành.
 ## T05 — Frontend và demo
 
 - [ ] Chat, upload/status, chọn version/search mode và xem nguồn.
-- [ ] Sinh 4 file Word × 10 trang và seed qua ingestion.
+- [x] Sinh 4 file Word × 10 trang và seed qua ingestion.
 - [ ] Kiểm thử end-to-end, restart persistence, concurrent version, job retry.
 - [ ] Hướng dẫn demo, kết quả benchmark và pin dependencies/images.

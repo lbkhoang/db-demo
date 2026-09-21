@@ -7,13 +7,15 @@ from fastapi.responses import JSONResponse
 
 from app.db import database_status
 from app.mcp_client import check_mcp
+from app.documents import router as documents_router
 
 app = FastAPI(title="RAG PostgreSQL", version="0.1.0")
+app.include_router(documents_router)
 
 
 @app.get("/")
 async def index():
-    return {"app": "rag-pg", "stage": "foundation", "docs": "/docs"}
+    return {"app": "rag-pg", "stage": "upload-and-ingestion", "docs": "/docs"}
 
 
 @app.get("/health/live")

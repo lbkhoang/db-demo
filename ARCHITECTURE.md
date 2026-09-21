@@ -25,14 +25,14 @@ flowchart LR
 - `mcp-server`: Python MCP SDK, Streamable HTTP nội bộ, tools chỉ đọc dữ liệu.
 - `postgres`: metadata, pages/chunks, vectors, full-text search, hàng đợi ingest.
 - `ollama`: GPU inference, volume model riêng; chỉ nạp một model đồng thời để giảm VRAM.
-- `worker` (task ingest): lấy job từ PostgreSQL, chuyển Word sang PDF bằng LibreOffice, parse PDF theo trang, embed tuần tự. Chưa cần Redis/Celery cho demo.
+- `worker`: lấy job từ PostgreSQL, chuyển Word sang PDF bằng LibreOffice, parse PDF theo trang, embed tuần tự. Chưa cần Redis/Celery cho demo.
 
 Chỉ app bind localhost:8000. Database, MCP và Ollama ở mạng Compose nội bộ. Đây là demo local một người dùng; authentication/multi-tenant chưa thuộc MVP.
 
 ## Model và giới hạn tài nguyên
 
 - `CHAT_MODEL=qwen3.6:27b` là ứng viên benchmark, chưa được xác nhận phù hợp máy đích. Model mặc định được niêm yết khoảng 18 GB, có thể phải offload RAM. Cho phép đổi tag qua `.env` sau benchmark; không tự đổi sang họ model khác.
-- `EMBED_MODEL=qwen3-embedding:0.6b`, dùng cùng model/cấu hình cho query và document. Kiểm tra dimension thực tế trước khi tạo cột/index vector ở task ingest.
+- `EMBED_MODEL=qwen3-embedding:0.6b`, dùng cùng model/cấu hình cho query và document. Schema dùng vector(1024); worker kiểm tra dimension, giá trị hữu hạn và vector khác zero cho từng response, từ chối publish khi không khớp.
 - `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1`; context chat 4096. Đo độ trễ khi đổi giữa embedding/chat model.
 - Không đặt memory limit WSL tự động; theo dõi RAM thực tế, chừa tài nguyên cho Windows. Không xem dung lượng model là tổng yêu cầu VRAM.
 - Ghi lại tag, digest, context, thời gian phản hồi, `ollama ps`, GPU/RAM sau benchmark. Pin image/model đã kiểm chứng trước khi đóng gói demo.
@@ -44,7 +44,7 @@ Chỉ app bind localhost:8000. Database, MCP và Ollama ở mạng Compose nội
 3. Cấp version trong transaction có khóa tài liệu: `v0.1`, `v0.2`, … `v0.10`. Hai số nguyên, không dùng float. Unique constraint theo tài liệu và version.
 4. Lưu file gốc bất biến, checksum, thời gian upload UTC và job `queued`.
 5. Worker chuyển `.doc`/`.docx` sang PDF trong thư mục riêng cho mỗi job. PDF là chuẩn pagination; Word có thể thay đổi layout theo font/render engine. Demo dùng page break và font có sẵn trong container.
-6. Parse từng trang, chunk không vượt qua ranh giới trang. Trang dài chia theo giới hạn token; giữ nguyên `page_number` và thứ tự chunk.
+6. Parse từng trang, chunk không vượt qua ranh giới trang. Bản demo dùng tối đa 1000 ký tự/chunk, overlap 100 ký tự và tắt truncate phía embedding; giữ nguyên `page_number` và thứ tự chunk. Token-aware chunking là cải tiến sau MVP.
 7. Embed và lưu dữ liệu; chỉ công bố version `ready` khi tất cả bước thành công. Retry idempotent, không nhân bản chunks; job lỗi có thông báo và retry hữu hạn.
 
 Mặc định search bản `ready` mới nhất của từng document. Bản mới lỗi không thay thế bản cũ. Upload date khác effective date; thiếu effective date thì không tự kết luận chính sách đang có hiệu lực.
@@ -57,10 +57,12 @@ Mặc định search bản `ready` mới nhất của từng document. Bản m�
 | document_versions | id, document_id, major, minor, original_name, storage_path, checksum, uploaded_at, effective_at, status, error |
 | pages | id, version_id, page_number, text |
 | chunks | id, page_id, chunk_index, text, embedding, embedding_model, search_vector |
-| ingestion_jobs | id, version_id, status, attempts, lease_until, error |
+| ingestion_jobs | id, version_id, status, attempts, updated_at, error |
 | conversations/messages | lịch sử, role, content, citations |
 
-Task nền tảng chỉ tạo `schema_migrations` và extension `vector`; các bảng nghiệp vụ được thêm bằng migration ở task tiếp theo. Migration đánh số, checksum, transaction và advisory lock; không phụ thuộc init script chỉ chạy một lần trên volume mới.
+Migration 001 tạo extension vector; migration 002 tạo documents, document_versions, pages, chunks và ingestion_jobs. Conversation/messages sẽ triển khai ở task chat. Migration đánh số, checksum, transaction và advisory lock; không phụ thuộc init script chỉ chạy một lần trên volume mới.
+
+Worker demo chạy đơn bằng PostgreSQL session advisory lock. Khi restart, nó thu hồi job processing bị gián đoạn; chỉ retry tự động tối đa 3 lần. Nếu mất session DB thì tiến trình thoát, Docker khởi động lại và giành lock trước khi xử lý tiếp. Chưa triển khai worker pool/lease heartbeat. API có retry thủ công cho job failed. Giới hạn 20 MiB/file, 200 trang, một triệu ký tự; PDF scan không có text được báo lỗi chưa hỗ trợ OCR.
 
 ## Retrieval và MCP
 

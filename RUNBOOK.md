@@ -13,7 +13,26 @@ docker compose exec ollama nvidia-smi
 docker compose exec app python -m scripts.smoke
 ```
 
-Mở http://localhost:8000/docs. `/health/ready` kiểm tra database, MCP tool và Ollama API; HTTP 200 ở đây chưa có nghĩa model đã tải hoặc chat RAG đã sẵn sàng. Task nền tảng chưa có upload/chat UI.
+Mở http://localhost:8000/docs. Có thể upload trực tiếp qua Swagger ở `POST /documents`, thêm version qua `POST /documents/{document_id}/versions`, xem trạng thái qua `GET /jobs/{job_id}` và nội dung qua `GET /versions/{version_id}/pages`.
+
+`/health/ready` kiểm tra database, MCP tool và Ollama API; HTTP 200 ở đây chưa có nghĩa model đã tải hoặc chat RAG đã sẵn sàng. Chưa có frontend chat.
+
+## Upload và dữ liệu demo
+
+```powershell
+docker compose exec ollama ollama pull qwen3-embedding:0.6b
+docker compose exec app python -m scripts.seed_demo
+docker compose exec app python -m scripts.test_ingestion
+```
+
+Seed tạo 4 file Word × 10 trang với dữ liệu giả lập HR/thưởng, upload qua API và xác minh nội dung từng trang. File mẫu cùng manifest lưu trong volume ở `/data/files/demo`; chạy lại seed dùng manifest, không upload thêm bản nếu đã có. Muốn lấy file mẫu về workspace:
+
+```powershell
+New-Item -ItemType Directory -Force data
+docker compose cp app:/data/files/demo data/demo
+```
+
+Integration test tạo tài liệu riêng, kiểm tra version đồng thời, PDF, embedding 1024 chiều, retry hữu hạn, latest-ready và reprocess không trùng chunks; khi thành công xóa riêng dữ liệu test. Word/PDF gốc lưu bất biến theo UUID trong volume; Word có thêm bản `.rendered.pdf`. Worker tự retry tối đa 3 lần; sau khi sửa nguyên nhân có thể gọi `POST /jobs/{id}/retry`.
 
 ## Model checkpoint
 

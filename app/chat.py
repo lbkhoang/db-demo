@@ -16,7 +16,7 @@ from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field
 
 from app.documents import connect
-from app.search import resolve_versions
+from app.search import resolve_versions, resolve_compare_versions
 
 router = APIRouter()
 CHAT_LOCK = asyncio.Lock()
@@ -41,8 +41,7 @@ def context(request):
     with connect() as conn:
         ids = resolve_versions(conn, request.version_ids)
         if request.compare:
-            if len(set(request.version_ids)) != 2:
-                raise ValueError("Chọn hai version khác nhau để so sánh")
+            ids = resolve_compare_versions(conn, request.version_ids)
             rows = conn.execute("SELECT DISTINCT document_id FROM document_versions WHERE id=ANY(%s)", (ids,)).fetchall()
             if len(rows) != 1:
                 raise ValueError("Hai version phải thuộc cùng tài liệu")

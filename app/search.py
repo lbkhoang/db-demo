@@ -28,7 +28,8 @@ def resolve_versions(conn, version_ids):
             raise ValueError("Version không tồn tại hoặc chưa ready")
         return ids
     return [row["id"] for row in conn.execute("""SELECT DISTINCT ON (document_id) id
-        FROM document_versions WHERE status='ready' ORDER BY document_id,major DESC,minor DESC""").fetchall()]
+        FROM document_versions WHERE status='ready'
+        ORDER BY document_id,major DESC,minor DESC,uploaded_at DESC""").fetchall()]
 
 
 BASE = """SELECT c.id AS chunk_id,c.text,p.page_number,v.id AS version_id,v.document_id,
@@ -68,11 +69,29 @@ def search_documents(query: str, mode: str = "hybrid", version_ids: list[str] | 
     return {"sources": sources, "mode": mode}
 
 
+def resolve_compare_versions(conn, version_ids):
+    ids = list(dict.fromkeys(UUID(str(value)) for value in version_ids))
+    if len(ids) not in (1, 2):
+        raise ValueError("So sánh cần một version cũ; bản mới nhất sẽ được chọn tự động")
+    selected = conn.execute("SELECT id,document_id,major,minor FROM document_versions WHERE id=ANY(%s) AND status='ready'", (ids,)).fetchall()
+    if len(selected) != len(ids):
+        raise ValueError("Version không tồn tại hoặc chưa ready")
+    document_ids = {row["document_id"] for row in selected}
+    if len(document_ids) != 1:
+        raise ValueError("Các version phải thuộc cùng tài liệu")
+    if len(ids) == 1:
+        latest = conn.execute("""SELECT id FROM document_versions
+            WHERE document_id=%s AND status='ready'
+            ORDER BY major DESC,minor DESC,uploaded_at DESC LIMIT 1""", (selected[0]["document_id"],)).fetchone()
+        if not latest or latest["id"] == ids[0]:
+            raise ValueError("Không có version mới hơn để so sánh")
+        ids.append(latest["id"])
+    return ids
+
+
 def read_version_evidence(version_ids: list[str]) -> dict:
-    if len(set(version_ids)) != 2:
-        raise ValueError("Chọn đúng hai version khác nhau để so sánh")
     with connect() as conn:
-        ids = resolve_versions(conn, version_ids)
+        ids = resolve_compare_versions(conn, version_ids)
         rows = conn.execute(BASE + " ORDER BY v.major,v.minor,p.page_number,c.chunk_index", (ids,MODEL)).fetchall()
     if len({row["document_id"] for row in rows}) != 1:
         raise ValueError("Hai version phải thuộc cùng tài liệu")

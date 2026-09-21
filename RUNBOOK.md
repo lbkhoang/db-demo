@@ -19,6 +19,8 @@ Mở http://localhost:8000/docs. Có thể upload trực tiếp qua Swagger ở 
 
 ## Chat và search
 
+Compare nhận một version cũ và tự chọn bản `ready` mới nhất cùng tài liệu. Có thể truyền hai version cụ thể để ghim cặp so sánh; search thông thường luôn dùng version mới nhất theo metadata nếu không truyền `version_ids`.
+
 ```powershell
 docker compose exec ollama ollama pull qwen3:4b
 docker compose exec app python -m scripts.test_search_chat

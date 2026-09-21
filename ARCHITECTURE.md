@@ -70,7 +70,7 @@ Tools hiện có:
 
 - `list_document_versions(document_id)`.
 - `search_documents(query, mode, version_ids, top_k)`.
-- `compare_document_versions(version_ids)` đọc toàn bộ evidence của đúng hai bản cùng tài liệu, tối đa 40 chunks/6500 ký tự.
+- `compare_document_versions(version_ids)` nhận một version cũ và tự chọn version `ready` mới nhất cùng tài liệu; cũng chấp nhận hai version cụ thể. Đọc tối đa 40 chunks/6500 ký tự.
 
 `system_status` tiếp tục kiểm tra handshake và database thực sự qua MCP. REST `GET /versions/{id}/pages` phục vụ đọc trang; chưa expose tool đọc trang riêng.
 
@@ -80,7 +80,7 @@ FastAPI xác nhận tool có trên MCP và tạo schema thu gọn cho model: ch�
 
 Trả lời dùng citation `[C123]`; backend xác minh IDs thuộc evidence đã truy xuất và dựng nguồn `file/version/page`. Thiếu citation hoặc có ID không hợp lệ thì thay bằng thông báo thiếu bằng chứng. Đây là kiểm tra nguồn/ID, không phải bộ chứng minh tự động rằng mọi mệnh đề đều đúng. SSE gửi status/delta/done/error; delta là bản tạm, UI thay bằng answer đã kiểm tra ở sự kiện done. UI hiển thị trạng thái gọi tool và nguồn, không xuất chuỗi suy luận nội bộ. Chỉ lưu user/assistant/citations khi lượt chat hoàn tất.
 
-So sánh hai version: lấy bằng chứng riêng từng bản; đối chiếu theo mã chính sách/chủ đề, không giả định số trang giống nhau. Khi yêu cầu toàn bộ thay đổi, đọc toàn bộ hai bản demo thay vì chỉ top-k rồi tuyên bố đầy đủ.
+So sánh hai version: UI/API chỉ cần một version cũ, backend tự chọn bản `ready` mới nhất theo metadata version (`major`, `minor`, `uploaded_at`); có thể truyền hai ID nếu cần ghim cả hai bản. Lấy bằng chứng riêng từng bản; đối chiếu theo mã chính sách/chủ đề, không giả định số trang giống nhau. Khi yêu cầu toàn bộ thay đổi, đọc toàn bộ hai bản demo thay vì chỉ top-k rồi tuyên bố đầy đủ.
 
 ## API và frontend dự kiến
 

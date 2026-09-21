@@ -55,6 +55,9 @@ def main():
         answer,citations=validate_answer('Thông tin [C999999]',[{"chunk_id":1}])
         assert not citations and 'Chưa đủ' in answer
         asyncio.run(mcp_check(old,new))
+        # One old version is enough: the server resolves the latest ready version.
+        response = client.post('/chat',json={"message":"so sánh HR-01", "version_ids": [old], "compare": True})
+        assert response.status_code == 200, response.text
         print('PASS: retrieval modes, Vietnamese unaccent, scope/latest-ready, MCP comparison, citation guard',flush=True)
         if '--chat' in sys.argv:
             result=ask(client,'Theo HR-01, nhân viên được nghỉ phép bao nhiêu ngày mỗi năm?',version_ids=[new],mode='keyword')

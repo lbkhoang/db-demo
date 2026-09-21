@@ -33,7 +33,7 @@ def search_documents(query: str, mode: str = "hybrid", version_ids: list[str] | 
 
 @mcp.tool()
 def compare_document_versions(version_ids: list[str]) -> dict:
-    """Read complete evidence from two versions of the same short document for comparison."""
+    """Read complete evidence from one old version and the latest ready version, or two explicit versions."""
     return read_version_evidence(version_ids)
 
 

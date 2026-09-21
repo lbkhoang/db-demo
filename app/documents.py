@@ -81,7 +81,7 @@ def list_documents():
         return conn.execute("""SELECT d.*, v.id AS latest_ready_version_id, v.filename AS latest_ready_filename
             FROM documents d LEFT JOIN LATERAL (
                 SELECT id,filename FROM document_versions WHERE document_id=d.id AND status='ready'
-                ORDER BY major DESC,minor DESC LIMIT 1
+                ORDER BY major DESC,minor DESC,uploaded_at DESC LIMIT 1
             ) v ON true ORDER BY d.created_at DESC""").fetchall()
 
 

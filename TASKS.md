@@ -39,17 +39,23 @@ Quy ước: `[x]` hoàn thành và kiểm tra, `[ ]` chưa hoàn thành.
 - Worker chạy đơn bằng session advisory lock, lưu PDF render bên cạnh Word gốc. API upload/status/pages sử dụng được qua Swagger.
 - Sau restart worker và chạy lại seed: vẫn đúng 2 tài liệu, 4 version, 40 trang, 40 chunk; smoke test API/MCP/Ollama pass. Bản sao file mẫu nằm ở `data/demo` (Git ignore).
 
-## T03 — Search
+## T03 — Search (implemented, live recheck pending Docker restart)
 
-- [ ] Vector, keyword tiếng Việt, hybrid RRF và bộ lọc trước top-k.
-- [ ] MCP tools tìm kiếm, liệt kê version, đọc trang.
-- [ ] Bộ câu hỏi và expected sources để đánh giá retrieval.
+- [x] Vector, keyword tiếng Việt, hybrid RRF và bộ lọc trước top-k.
+- [x] MCP tools tìm kiếm, liệt kê version, so sánh evidence.
+- [x] Bộ câu hỏi và expected sources để đánh giá retrieval.
 
-## T04 — Chat và so sánh
+## T04 — Chat và so sánh (implemented, model runtime recheck pending)
 
-- [ ] Ollama/MCP tool loop, giới hạn vòng/timeout/context.
-- [ ] Streaming, lịch sử chat, xác minh citations.
-- [ ] So sánh version riêng biệt; xử lý thiếu bằng chứng.
+- [x] Ollama/MCP tool loop, giới hạn vòng/timeout/context.
+- [x] Streaming, lịch sử chat, xác minh citations.
+- [x] So sánh một version cũ với version mới nhất; vẫn hỗ trợ hai version cụ thể và xử lý thiếu bằng chứng.
+
+### Refactor version scope ngày 2026-09-22
+
+- Vector vẫn lưu ở `chunks` theo `document_version`; không gộp hoặc ghi đè giữa các bản.
+- Search thường không truyền version sẽ chọn bản `ready` mới nhất của từng tài liệu theo metadata version.
+- Compare nhận một version cũ và tự chọn bản mới nhất cùng tài liệu; hai version cụ thể vẫn được hỗ trợ.
 
 ## T05 — Frontend và demo
 

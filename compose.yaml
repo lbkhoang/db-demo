@@ -1,0 +1,83 @@
+name: rag-pg
+x-app: &app
+  image: rag-pg-app:local
+  environment: &environment
+    PGHOST: postgres
+    PGDATABASE: ${POSTGRES_DB:-rag}
+    PGUSER: ${POSTGRES_USER:-rag}
+    PGPASSWORD: ${POSTGRES_PASSWORD:-rag_local_demo}
+    OLLAMA_URL: http://ollama:11434
+    MCP_URL: http://mcp-server:8001/mcp
+    CHAT_MODEL: ${CHAT_MODEL:-qwen3.6:27b}
+    EMBED_MODEL: ${EMBED_MODEL:-qwen3-embedding:0.6b}
+    CHAT_CONTEXT: ${CHAT_CONTEXT:-4096}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rag}
+      POSTGRES_USER: ${POSTGRES_USER:-rag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag_local_demo}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    gpus: all
+    environment:
+      OLLAMA_NUM_PARALLEL: '1'
+      OLLAMA_MAX_LOADED_MODELS: '1'
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: [CMD, ollama, list]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  migrate:
+    <<: *app
+    command: [python, -m, scripts.migrate]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mcp-server:
+    <<: *app
+    command: [python, -m, app.mcp_server]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -m, scripts.check_mcp]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  app:
+    <<: *app
+    build: .
+    ports:
+      - '127.0.0.1:${APP_PORT:-8000}:8000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mcp-server:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+volumes:
+  postgres_data:
+  ollama_data:

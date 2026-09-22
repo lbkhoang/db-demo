@@ -19,6 +19,36 @@ Mở http://localhost:8000/docs. Có thể upload trực tiếp qua Swagger ở 
 
 ## Chat và search
 
+## Demo terminal tách riêng
+
+Demo ingest chỉ tập trung vào file → version → pages/chunks/vector:
+
+```powershell
+docker compose exec app python -m scripts.demo_ingest --seed
+docker compose exec app python -m scripts.demo_ingest --file /data/files/demo/hr_policy_v0.1.docx --title hr_policy_copy
+```
+
+Hoặc chạy từ máy host với file local, vì API bind ở `localhost:8000`:
+
+```powershell
+python -m scripts.demo_ingest --file .\data\demo\hr_policy_v0.1.docx --title hr_policy_copy
+```
+
+Lệnh host cần môi trường Python đã cài dependency (`pip install -r requirements.txt`); nếu không muốn cài vào máy, dùng lệnh `docker compose exec app ...`.
+
+Script in ra document ID, version, trạng thái job, số trang và thời điểm upload; nó chỉ kết thúc thành công khi worker đã publish bản `ready`.
+
+CLI chat nhận một prompt hoặc chạy interactive:
+
+```powershell
+python -m scripts.chat_cli "Theo HR-01, nhân viên được nghỉ phép bao nhiêu ngày?"
+python -m scripts.chat_cli
+python -m scripts.chat_cli --version-id <OLD_VERSION_UUID> --compare
+docker compose exec app python -m scripts.chat_cli
+```
+
+Trong interactive mode, nhập `/help` hoặc `/quit`. Với compare, truyền một version cũ; backend tự lấy version mới nhất cùng tài liệu. Dùng `RAG_API_URL=http://app:8000` khi chạy CLI bên trong container.
+
 Compare nhận một version cũ và tự chọn bản `ready` mới nhất cùng tài liệu. Có thể truyền hai version cụ thể để ghim cặp so sánh; search thông thường luôn dùng version mới nhất theo metadata nếu không truyền `version_ids`.
 
 ```powershell

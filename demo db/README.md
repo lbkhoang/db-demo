@@ -1,0 +1,64 @@
+# Portable DB demo
+
+Folder này chạy trực tiếp bằng Python `venv`, không khởi động Docker. Máy khách chỉ cần chuẩn bị PostgreSQL + pgvector và Ollama ở local. Mặc định kết nối `localhost`; sửa `.env` nếu cần.
+
+## Chuẩn bị
+
+```powershell
+cd ".\demo db"
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+Copy-Item .env.example .env
+python db_init.py
+python healthcheck.py
+```
+
+Ollama cần có `qwen3-embedding:0.6b` và model chat được khai báo trong `.env`.
+
+## Ingest
+
+Chỉ cần bỏ Word/PDF vào thư mục `docs/`, rồi chạy:
+
+```powershell
+python ingest.py
+```
+
+Để xóa dữ liệu demo hiện tại và import lại toàn bộ thư mục:
+
+```powershell
+python ingest.py reset
+```
+
+Version tự đọc từ suffix:
+
+```text
+docs/hr_policy_v0.1.docx
+docs/hr_policy_v0.2.docx
+docs/bonus_policy_v0.1.docx
+docs/bonus_policy_v0.2.docx
+```
+
+File không có suffix sẽ nhận minor tiếp theo. File trùng checksum được bỏ qua; hai file trùng version sẽ làm lệnh dừng để tránh ghi đè.
+
+Flow ingest là: quét `docs/` → lưu file gốc → Word render sang PDF → đọc text theo page → gọi Ollama embedding → insert document/version/page/chunk/vector vào PostgreSQL. Cuối lệnh in số lượng document, version, page và chunk. LibreOffice cần có trong PATH cho Word; PDF có text không cần LibreOffice. OCR chưa hỗ trợ.
+
+## Chat terminal
+
+```powershell
+python chat.py
+python chat.py "Theo HR-01, nhân viên được nghỉ phép bao nhiêu ngày?"
+python chat.py --version-id <VERSION_UUID> "Chính sách của version này là gì?"
+python chat.py --compare-version <OLD_VERSION_UUID>
+```
+
+Chat thường dùng version `ready` mới nhất. Compare nhận một version cũ rồi tự lấy version mới nhất cùng tài liệu. Kết quả in câu trả lời và citation `[C<chunk_id>] file · page`.
+
+## Files
+
+- `ingest.py`: lệnh duy nhất cho ingest (`reset` là tham số duy nhất).
+- `chat.py`: chat/search trực tiếp với PostgreSQL và Ollama.
+- `db_init.py`, `schema.sql`: khởi tạo database demo.
+- `healthcheck.py`: kiểm tra DB, pgvector, Ollama và embedding dimension.
+- `docs/`: nơi khách bỏ file cần demo.
+- `.env.example`: cấu hình local.

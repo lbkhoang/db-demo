@@ -1,4 +1,4 @@
-# Demo RAG: Ingest tài liệu và hỏi đáp từ PostgreSQL
+﻿# Demo RAG: Ingest tài liệu và hỏi đáp từ PostgreSQL
 
 Tài liệu này giải thích demo ở mức có thể trình bày với người không trực tiếp viết code. Demo cho thấy một file chính sách được đưa vào hệ thống, lưu thành nhiều phiên bản, tách thành các trang/chunk có vector trong PostgreSQL, rồi được truy xuất khi người dùng đặt câu hỏi ở terminal.
 
@@ -18,7 +18,7 @@ Thay vì đưa toàn bộ file vào model trong mỗi câu hỏi, hệ thống c
 
 ```mermaid
 flowchart LR
-    F[Word/PDF] --> A[FastAPI upload]
+    F[Word/PDF/Markdown] --> A[FastAPI upload]
     A --> M[(PostgreSQL metadata)]
     A --> Q[Ingestion job]
     Q --> W[Worker]
@@ -26,7 +26,7 @@ flowchart LR
     P --> E[Ollama embedding]
     E --> V[(pgvector chunks)]
 
-    U[Prompt terminal] --> C[FastAPI chat]
+    U[Terminal prompt] --> C[FastAPI chat]
     C --> S[MCP search tool]
     S --> R[Latest ready version]
     R --> V
@@ -200,3 +200,19 @@ Khi tài liệu có Markdown heading, worker có thể gom text theo cây headin
 ```powershell
 python scripts/agent_loop_demo.py "Tóm tắt HR-01 và HR-02, gồm ngày phép và remote work."
 ```
+
+## Terminal-only software demo
+
+Frontend đã được bỏ khỏi app. Backend chỉ cung cấp API nội bộ cho terminal client và worker. File mẫu `demo db/docs/software_list_v0.1.md` chứa danh sách phần mềm whitelist/blacklist.
+
+Ba câu demo:
+
+```powershell
+cd "demo db"
+$env:CHUNK_STRATEGY="header"
+python ingest.py reset
+python chat.py "Phần mềm uTorrent là whitelist hay blacklist?"
+cd ..
+python scripts/agent_loop_demo.py "Lấy toàn bộ blacklist trong danh sách phần mềm."
+python scripts/agent_loop_demo.py "Lấy tất cả phần mềm trong danh sách và tổng hợp phần nào blacklist, phần nào whitelist."
+```\n

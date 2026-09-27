@@ -4,8 +4,6 @@ import os
 import httpx
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from fastapi.responses import FileResponse
-from pathlib import Path
 
 from app.db import database_status
 from app.mcp_client import check_mcp
@@ -17,11 +15,6 @@ app = FastAPI(title="RAG PostgreSQL", version="0.1.0")
 app.include_router(documents_router)
 app.include_router(search_router)
 app.include_router(chat_router)
-
-
-@app.get("/")
-async def index():
-    return FileResponse(Path(__file__).parent / "static" / "index.html")
 
 
 @app.get("/health/live")

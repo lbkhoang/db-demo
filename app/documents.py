@@ -1,4 +1,4 @@
-from datetime import date
+﻿from datetime import date
 from hashlib import sha256
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -21,8 +21,8 @@ def connect():
 def store_upload(file: UploadFile, document_id: UUID | None, title: str | None, effective_at: date | None):
     original = (file.filename or "").replace("\\", "/").split("/")[-1]
     suffix = Path(original).suffix.lower()
-    if suffix not in {".doc", ".docx", ".pdf"}:
-        raise HTTPException(415, "Chỉ hỗ trợ .doc, .docx và .pdf")
+    if suffix not in {".doc", ".docx", ".pdf", ".md", ".txt"}:
+        raise HTTPException(415, "Unsupported file type; use .doc, .docx, .pdf, .md or .txt")
     version_id, job_id = uuid4(), uuid4()
     FILE_ROOT.mkdir(parents=True, exist_ok=True)
     path = FILE_ROOT / f"{version_id}{suffix}"

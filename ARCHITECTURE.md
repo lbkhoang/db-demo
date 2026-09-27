@@ -1,4 +1,4 @@
-# Kiến trúc app RAG PostgreSQL
+﻿# Kiến trúc app RAG PostgreSQL
 
 ## Mục tiêu và hiện trạng
 
@@ -10,7 +10,7 @@ Máy đích: Windows, Docker Desktop Linux/WSL2, RAM 32 GB, RTX 5060 Ti 16 GB. K
 
 ```mermaid
 flowchart LR
-    UI[Frontend HTML/JS] --> API[FastAPI + MCP client]
+    CLI[Terminal clients] --> API[FastAPI + MCP client]
     API <--> LLM[Ollama: Qwen3.6]
     API --> MCP[MCP server]
     MCP --> DB[(PostgreSQL + pgvector)]
@@ -104,4 +104,4 @@ Kiểm tra: 40 trang được ingest; câu trả lời đúng nguồn/version; c
 - [Ollama tool calling](https://docs.ollama.com/capabilities/tool-calling)
 - [Qwen3.6](https://ollama.com/library/qwen3.6)
 - [Qwen3 Embedding](https://ollama.com/library/qwen3-embedding)
-- [pgvector hybrid search](https://github.com/pgvector/pgvector#hybrid-search)
+- [pgvector hybrid search](https://github.com/pgvector/pgvector#hybrid-search)\n

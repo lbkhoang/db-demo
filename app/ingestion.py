@@ -16,6 +16,11 @@ DIMENSION = int(os.getenv("EMBED_DIM", "1024"))
 
 
 def parse_pages(source: Path) -> list[str]:
+    if source.suffix.lower() in {".md", ".txt"}:
+        text = source.read_text(encoding="utf-8").replace("\x00", "").strip()
+        if not text:
+            raise ValueError("Empty text file")
+        return [text]
     with tempfile.TemporaryDirectory(prefix="rag-convert-") as directory:
         root = Path(directory)
         pdf = source

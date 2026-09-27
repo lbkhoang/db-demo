@@ -82,3 +82,25 @@ python scripts/agent_loop_demo.py "Tóm tắt HR-01 và HR-02, gồm ngày phép
 ```
 
 Mỗi lần gọi search được in ra terminal; loop tối đa ba lần và cuối cùng trả lời từ toàn bộ evidence đã gom.
+
+## Demo software whitelist/blacklist
+
+File mẫu nằm ở `docs/software_list_v0.1.md`. File có hai section `Whitelist` và `Blacklist`, vì vậy phù hợp để demo chunk theo header.
+
+```powershell
+# trong thư mục demo db
+$env:CHUNK_STRATEGY="header"
+python ingest.py reset
+
+# terminal chat: câu 1
+python chat.py "Phần mềm uTorrent là whitelist hay blacklist?"
+
+# câu 2: agent loop lấy một nhóm
+cd ..
+python scripts/agent_loop_demo.py "Lấy toàn bộ blacklist trong danh sách phần mềm."
+
+# câu 3: tổng hợp cả danh sách
+python scripts/agent_loop_demo.py "Lấy tất cả phần mềm trong danh sách và tổng hợp phần nào blacklist, phần nào whitelist."
+```
+
+Agent loop in từng lần gọi search. Nếu evidence chưa đủ, model gọi lại tool với query bổ sung trước khi tổng hợp câu trả lời.

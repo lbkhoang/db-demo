@@ -47,6 +47,11 @@ def chunks(text, size=1000, overlap=100):
 
 
 def read_pages(path):
+    if path.suffix.lower() in {".md", ".txt"}:
+        text = path.read_text(encoding="utf-8").replace("\x00", "").strip()
+        if not text:
+            raise RuntimeError(f"KhÃ´ng cÃ³ text: {path.name}")
+        return [text]
     with tempfile.TemporaryDirectory(prefix="demo-db-") as folder:
         folder = Path(folder)
         source = path
@@ -108,7 +113,7 @@ def main():
     reset = len(sys.argv) == 2 and sys.argv[1].lower() == "reset"
     if len(sys.argv) > 2 or (len(sys.argv) == 2 and not reset):
         raise SystemExit("Usage: python ingest.py [reset]")
-    files = sorted(path for path in DOCS_DIR.rglob("*") if path.suffix.lower() in {".doc", ".docx", ".pdf"})
+    files = sorted(path for path in DOCS_DIR.rglob("*") if path.suffix.lower() in {".doc", ".docx", ".pdf", ".md", ".txt"})
     if not files:
         raise SystemExit(f"Chưa có file Word/PDF trong {DOCS_DIR}")
     with db() as conn:

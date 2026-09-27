@@ -1,22 +1,15 @@
-﻿mình cần 1 project docker, nền python, demo được rag,
-stack:
-ollama
-qwen3.6
-postgress
-pgvector
-mcp
-fastapi
+﻿# RAG terminal demo
 
-nội dung cần làm
-user chat ở fe, có thể up file
-qwen reasoning và call mcp
-lấy data từ db vecto và trả lời
+Project Python + Docker dùng PostgreSQL/pgvector, Ollama, MCP và FastAPI. Demo không có frontend.
 
-về phần file, parse theo chunk và insert theo page, hãy demo 2 file doc có 10 page về hr policy và khoản thưởng, mỗi page 1 câu để search là được
+Dữ liệu mẫu nằm ở `examples/software_list_v0.1.md`, gồm whitelist và blacklist phần mềm. Hệ thống lưu một document duy nhất, chunk theo page hoặc header, embed vào PostgreSQL và trả lời qua terminal.
 
-db postgress thì lưu thông tin file, ngày up và version
+Các câu hỏi demo:
 
-file mặc định sẽ có _v0.1 và tăng dần ở cuối tên
-demo được có thể lưu file nhiều version và reasoning giữa các version
-có thể demo được hybrid search nữa
-Current demo scope: terminal only, no frontend. The sample software policy is `examples/software_list_v0.1.md` and supports whitelist/blacklist lookup, category listing through the agent loop, and full inventory summarization.\n
+```powershell
+python scripts/agent_loop_demo.py "Phần mềm uTorrent là whitelist hay blacklist?"
+python scripts/agent_loop_demo.py "Lấy toàn bộ blacklist trong danh sách phần mềm."
+python scripts/agent_loop_demo.py "Lấy tất cả phần mềm và tổng hợp blacklist hay whitelist."
+```
+
+Chi tiết kiến trúc và vận hành: [ARCHITECTURE.md](ARCHITECTURE.md), [RUNBOOK.md](RUNBOOK.md).

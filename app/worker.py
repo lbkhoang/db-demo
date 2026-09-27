@@ -25,12 +25,12 @@ def process(conn, job):
             prepared.append((number, text, chunks))
     # Publish all pages/chunks and ready state atomically, only after embedding succeeds.
     with conn.transaction():
-        conn.execute("DELETE FROM pages WHERE version_id=%s", (job["version_id"],))
+        conn.execute("DELETE FROM pages WHERE document_id=%s", (job["document_id"],))
         for number, text, chunks in prepared:
-            page_id = conn.execute("INSERT INTO pages(version_id,page_number,text) VALUES (%s,%s,%s) RETURNING id", (job["version_id"],number,text)).fetchone()["id"]
+            page_id = conn.execute("INSERT INTO pages(document_id,page_number,text) VALUES (%s,%s,%s) RETURNING id", (job["document_id"],number,text)).fetchone()["id"]
             for index, header, content, vector in chunks:
                 conn.execute("INSERT INTO chunks(page_id,chunk_index,section_path,text,embedding,embedding_model) VALUES (%s,%s,%s,%s,%s::vector,%s)", (page_id,index,header,content,vector,MODEL))
-        conn.execute("UPDATE document_versions SET status='ready',error=NULL,page_count=%s WHERE id=%s", (len(pages),job["version_id"]))
+        conn.execute("UPDATE documents SET status='ready',error=NULL,page_count=%s WHERE id=%s", (len(pages),job["document_id"]))
         conn.execute("UPDATE ingestion_jobs SET status='ready',error=NULL,updated_at=now() WHERE id=%s", (job["id"],))
 
 
@@ -42,30 +42,30 @@ def main():
             raise RuntimeError("Một worker khác đang chạy")
         with conn.transaction():
             recovered = conn.execute("""UPDATE ingestion_jobs SET status=CASE WHEN attempts>=3 THEN 'failed' ELSE 'queued' END,
-                error='Worker interrupted',updated_at=now() WHERE status='processing' RETURNING version_id,status""").fetchall()
+                error='Worker interrupted',updated_at=now() WHERE status='processing' RETURNING document_id,status""").fetchall()
             for job in recovered:
-                conn.execute("UPDATE document_versions SET status=%s,error='Worker interrupted' WHERE id=%s", (job["status"],job["version_id"]))
+                conn.execute("UPDATE documents SET status=%s,error='Worker interrupted' WHERE id=%s", (job["status"],job["document_id"]))
         logging.info("Worker ready")
         while True:
             with conn.transaction():
-                job = conn.execute("""SELECT j.*,v.storage_path FROM ingestion_jobs j JOIN document_versions v ON v.id=j.version_id
+                job = conn.execute("""SELECT j.*,d.storage_path FROM ingestion_jobs j JOIN documents d ON d.id=j.document_id
                     WHERE j.status='queued' ORDER BY j.created_at LIMIT 1 FOR UPDATE OF j SKIP LOCKED""").fetchone()
                 if job:
                     conn.execute("UPDATE ingestion_jobs SET status='processing',attempts=attempts+1,updated_at=now() WHERE id=%s", (job["id"],))
-                    conn.execute("UPDATE document_versions SET status='processing',error=NULL WHERE id=%s", (job["version_id"],))
+                    conn.execute("UPDATE documents SET status='processing',error=NULL WHERE id=%s", (job["document_id"],))
             if not job:
                 time.sleep(2)
                 continue
             try:
                 process(conn, job)
-                logging.info("Ready version %s", job["version_id"])
+                logging.info("Ready document %s", job["document_id"])
             except Exception as error:
-                logging.exception("Ingest failed for %s", job["version_id"])
+                logging.exception("Ingest failed for %s", job["document_id"])
                 status = "failed" if job["attempts"] + 1 >= 3 else "queued"
                 reason = f"{type(error).__name__}: {error}"[:1000]
                 with conn.transaction():
                     conn.execute("UPDATE ingestion_jobs SET status=%s,error=%s,updated_at=now() WHERE id=%s", (status,reason,job["id"]))
-                    conn.execute("UPDATE document_versions SET status=%s,error=%s WHERE id=%s", (status,reason,job["version_id"]))
+                    conn.execute("UPDATE documents SET status=%s,error=%s WHERE id=%s", (status,reason,job["document_id"]))
                 time.sleep(3)
 
 

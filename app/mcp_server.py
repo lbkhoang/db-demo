@@ -2,9 +2,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from app.db import database_status
-from app.search import search_documents as retrieve, read_version_evidence
-from app.documents import list_versions
-from uuid import UUID
+from app.search import search_documents as retrieve
 
 mcp = FastMCP(
     "rag-pg",
@@ -26,24 +24,9 @@ async def system_status() -> dict:
 
 
 @mcp.tool()
-def search_documents(query: str, mode: str = "hybrid", version_ids: list[str] | None = None, top_k: int = 6) -> dict:
-    """Search policy evidence. Empty version_ids uses only latest ready versions."""
-    return retrieve(query, mode, version_ids, top_k)
-
-
-@mcp.tool()
-def compare_document_versions(version_ids: list[str]) -> dict:
-    """Read complete evidence from one old version and the latest ready version, or two explicit versions."""
-    return read_version_evidence(version_ids)
-
-
-@mcp.tool()
-def list_document_versions(document_id: str) -> dict:
-    """List available versions of a document, including ingestion status."""
-    return {"versions": [
-        {"id": str(row["id"]), "filename": row["filename"], "status": row["status"]}
-        for row in list_versions(UUID(document_id))
-    ]}
+def search_documents(query: str, mode: str = "hybrid", top_k: int = 6) -> dict:
+    """Search evidence across all ready documents."""
+    return retrieve(query, mode, top_k)
 
 
 if __name__ == "__main__":

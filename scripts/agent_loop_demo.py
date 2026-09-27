@@ -44,7 +44,11 @@ def main():
             result.raise_for_status()
             sources = result.json().get("sources", [])
             print(f"  -> {len(sources)} source(s)")
-            messages.append({"role": "tool", "tool_name": "search_documents", "content": json.dumps(sources, ensure_ascii=False)})
+            # Give the model only stable citation IDs and evidence text.
+            evidence = [{"citation": f"C{s['chunk_id']}", "file": s["filename"],
+                         "page": s["page_number"], "section": s.get("section_path", ""),
+                         "text": s["text"]} for s in sources]
+            messages.append({"role": "tool", "tool_name": "search_documents", "content": json.dumps(evidence, ensure_ascii=False)})
             calls += 1
         messages.append({"role": "system", "content": "The retrieval limit has been reached. Answer from the collected evidence and state any missing information."})
         response = client.post(ollama + "/api/chat", json={"model": args.model, "messages": messages, "stream": False, "options": {"num_ctx": 4096, "temperature": 0}})

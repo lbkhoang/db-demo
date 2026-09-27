@@ -17,7 +17,7 @@ DIMENSION = int(os.getenv("EMBED_DIM", "1024"))
 def parse_pages(source: Path) -> list[str]:
     """Return extracted text pages; Markdown/text files are one logical page."""
     if source.suffix.lower() in {".md", ".txt"}:
-        text = source.read_text(encoding="utf-8").replace("\x00", "").strip()
+        text = source.read_text(encoding="utf-8-sig").replace("\x00", "").strip()
         if not text:
             raise ValueError("Empty text file")
         return [text]

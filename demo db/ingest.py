@@ -7,6 +7,7 @@ Names use <document>_v<major>.<minor>.docx, for example hr_policy_v0.1.docx.
 """
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -18,6 +19,7 @@ from uuid import uuid4
 import pymupdf
 
 from common import EMBED_MODEL, FILES_DIR, db, embed
+from header_chunking import chunks_for_page
 
 ROOT = Path(__file__).parent
 DOCS_DIR = ROOT / "docs"
@@ -79,7 +81,9 @@ def import_file(conn, path, title, major, minor):
     shutil.copyfile(path, stored)
     try:
         pages = read_pages(stored)
-        values = [value for page in pages for value in chunks(page)]
+        strategy = os.getenv("CHUNK_STRATEGY", "page")
+        page_chunks = [chunks_for_page(page, strategy) for page in pages]
+        values = [item["text"] for items in page_chunks for item in items]
         vectors = embed(values)
         filename = f"{title}_v{major}.{minor}{path.suffix.lower()}"
         conn.execute("""INSERT INTO document_versions
@@ -89,10 +93,10 @@ def import_file(conn, path, title, major, minor):
         offset = 0
         for page_number, text in enumerate(pages, 1):
             page_id = conn.execute("INSERT INTO pages(version_id,page_number,text) VALUES (%s,%s,%s) RETURNING id", (version_id,page_number,text)).fetchone()["id"]
-            for index, value in enumerate(chunks(text)):
-                conn.execute("""INSERT INTO chunks(page_id,chunk_index,text,embedding,embedding_model,search_vector)
-                    VALUES (%s,%s,%s,%s::vector,%s,to_tsvector('simple',unaccent(%s)))""",
-                    (page_id,index,value,json.dumps(vectors[offset]),EMBED_MODEL,value))
+            for item in page_chunks[page_number - 1]:
+                conn.execute("""INSERT INTO chunks(page_id,chunk_index,section_path,text,embedding,embedding_model,search_vector)
+                    VALUES (%s,%s,%s,%s,%s::vector,%s,to_tsvector('simple',unaccent(%s)))""",
+                    (page_id,item["chunk_index"],item["header"],item["text"],json.dumps(vectors[offset]),EMBED_MODEL,item["text"]))
                 offset += 1
         print(f"READY {filename}: {len(pages)} pages, {len(values)} chunks, vector={len(vectors[0])}")
     except Exception:

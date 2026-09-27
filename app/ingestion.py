@@ -9,25 +9,10 @@ import tempfile
 import httpx
 import pymupdf
 
+from app.chunking import chunk_text
+
 MODEL = os.getenv("EMBED_MODEL", "qwen3-embedding:0.6b")
 DIMENSION = int(os.getenv("EMBED_DIM", "1024"))
-
-
-def chunk_text(text: str, size: int = 1000, overlap: int = 100) -> list[str]:
-    # Character bound is conservative for the small multilingual demo.
-    if size <= 0 or overlap < 0 or overlap >= size:
-        raise ValueError("Invalid chunk size/overlap")
-    result = []
-    start = 0
-    while start < len(text):
-        end = min(start + size, len(text))
-        value = text[start:end].strip()
-        if value:
-            result.append(value)
-        if end == len(text):
-            break
-        start = end - overlap
-    return result
 
 
 def parse_pages(source: Path) -> list[str]:

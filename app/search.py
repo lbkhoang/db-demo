@@ -32,7 +32,7 @@ def resolve_versions(conn, version_ids):
         ORDER BY document_id,major DESC,minor DESC,uploaded_at DESC""").fetchall()]
 
 
-BASE = """SELECT c.id AS chunk_id,c.text,p.page_number,v.id AS version_id,v.document_id,
+BASE = """SELECT c.id AS chunk_id,c.text,c.section_path,p.page_number,v.id AS version_id,v.document_id,
     v.filename,v.major,v.minor FROM chunks c JOIN pages p ON p.id=c.page_id
     JOIN document_versions v ON v.id=p.version_id
     WHERE v.id=ANY(%s) AND v.status='ready' AND c.embedding_model=%s"""

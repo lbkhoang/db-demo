@@ -7,7 +7,8 @@ import httpx
 import psycopg
 from psycopg.rows import dict_row
 
-from app.ingestion import MODEL, chunk_text, embed, parse_pages
+from app.ingestion import MODEL, embed, parse_pages
+from app.chunking import chunks_for_page
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 LOCK_ID = 728402
@@ -16,17 +17,19 @@ LOCK_ID = 728402
 def process(conn, job):
     pages = parse_pages(Path(job["storage_path"]))
     prepared = []
+    strategy = os.getenv("CHUNK_STRATEGY", "page")
     with httpx.Client(base_url=os.getenv("OLLAMA_URL", "http://ollama:11434"), timeout=180) as client:
         for number, text in enumerate(pages, 1):
-            chunks = [(index, content, embed(client, content)) for index, content in enumerate(chunk_text(text))]
+            chunks = [(item["chunk_index"], item["header"], item["text"], embed(client, item["text"]))
+                      for item in chunks_for_page(text, strategy)]
             prepared.append((number, text, chunks))
     # Publish all pages/chunks and ready state atomically, only after embedding succeeds.
     with conn.transaction():
         conn.execute("DELETE FROM pages WHERE version_id=%s", (job["version_id"],))
         for number, text, chunks in prepared:
             page_id = conn.execute("INSERT INTO pages(version_id,page_number,text) VALUES (%s,%s,%s) RETURNING id", (job["version_id"],number,text)).fetchone()["id"]
-            for index, content, vector in chunks:
-                conn.execute("INSERT INTO chunks(page_id,chunk_index,text,embedding,embedding_model) VALUES (%s,%s,%s,%s::vector,%s)", (page_id,index,content,vector,MODEL))
+            for index, header, content, vector in chunks:
+                conn.execute("INSERT INTO chunks(page_id,chunk_index,section_path,text,embedding,embedding_model) VALUES (%s,%s,%s,%s,%s::vector,%s)", (page_id,index,header,content,vector,MODEL))
         conn.execute("UPDATE document_versions SET status='ready',error=NULL,page_count=%s WHERE id=%s", (len(pages),job["version_id"]))
         conn.execute("UPDATE ingestion_jobs SET status='ready',error=NULL,updated_at=now() WHERE id=%s", (job["id"],))
 

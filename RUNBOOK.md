@@ -19,6 +19,29 @@ Mở http://localhost:8000/docs. Có thể upload trực tiếp qua Swagger ở 
 
 ## Chat và search
 
+## Demo chunk theo header và agent loop
+
+Chunk theo header là strategy bổ sung, mặc định vẫn là `page`. Với tài liệu có tiêu đề Markdown (`#`, `##`, ...), bật trong `.env`:
+
+```dotenv
+CHUNK_STRATEGY=header
+```
+
+```powershell
+docker compose up -d --build worker migrate
+docker compose exec app python -m scripts.test_chunking
+```
+
+Worker lưu đường dẫn header ở `chunks.section_path`, ví dụ `Leave > Request`. Tài liệu không có header vẫn dùng strategy `page` mặc định.
+
+Agent loop demo cho phép model gọi search nhiều lần nếu evidence đầu tiên chưa đủ:
+
+```powershell
+docker compose exec app python -m scripts.agent_loop_demo "Tóm tắt HR-01 và HR-02, gồm ngày phép và remote work."
+```
+
+Mỗi vòng được in ra terminal, giới hạn ba lần và chặn query trùng.
+
 ## Demo terminal tách riêng
 
 Demo ingest chỉ tập trung vào file → version → pages/chunks/vector:

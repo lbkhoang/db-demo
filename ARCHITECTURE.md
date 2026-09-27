@@ -25,7 +25,7 @@ flowchart LR
 - `mcp-server`: Python MCP SDK, Streamable HTTP nội bộ, tools chỉ đọc dữ liệu.
 - `postgres`: metadata, pages/chunks, vectors, full-text search, hàng đợi ingest.
 - `ollama`: GPU inference, volume model riêng; chỉ nạp một model đồng thời để giảm VRAM.
-- `worker`: lấy job từ PostgreSQL, chuyển Word sang PDF bằng LibreOffice, parse PDF theo trang, embed tuần tự. Chưa cần Redis/Celery cho demo.
+- `worker`: lấy job từ PostgreSQL, chuyển Word sang PDF bằng LibreOffice, parse PDF theo trang, embed tuần tự. Chưa cần Redis/Celery cho demo. `CHUNK_STRATEGY=header` giữ section path từ Markdown headings trong `chunks.section_path`; mặc định `page` để tương thích tài liệu hiện tại.
 
 Chỉ app bind localhost:8000. Database, MCP và Ollama ở mạng Compose nội bộ. Đây là demo local một người dùng; authentication/multi-tenant chưa thuộc MVP.
 
@@ -56,11 +56,11 @@ Mặc định search bản `ready` mới nhất của từng document. Bản m�
 | documents | id, title, category, created_at |
 | document_versions | id, document_id, major, minor, original_name, storage_path, checksum, uploaded_at, effective_at, status, error |
 | pages | id, version_id, page_number, text |
-| chunks | id, page_id, chunk_index, text, embedding, embedding_model, search_vector |
+| chunks | id, page_id, chunk_index, section_path, text, embedding, embedding_model, search_vector |
 | ingestion_jobs | id, version_id, status, attempts, updated_at, error |
 | conversations/messages | lịch sử, role, content, citations |
 
-Migration 001 tạo extension vector; migration 002 tạo documents, document_versions, pages, chunks và ingestion_jobs. Migration 003 thêm FTS với unaccent, GIN index, conversations/messages. Migration đánh số, checksum, transaction và advisory lock; không phụ thuộc init script chỉ chạy một lần trên volume mới.
+Migration 001 tạo extension vector; migration 002 tạo documents, document_versions, pages, chunks và ingestion_jobs. Migration 003 thêm FTS với unaccent, GIN index, conversations/messages. Migration 004 thêm `chunks.section_path` cho chunk theo header. Migration đánh số, checksum, transaction và advisory lock; không phụ thuộc init script chỉ chạy một lần trên volume mới.
 
 Worker demo chạy đơn bằng PostgreSQL session advisory lock. Khi restart, nó thu hồi job processing bị gián đoạn; chỉ retry tự động tối đa 3 lần. Nếu mất session DB thì tiến trình thoát, Docker khởi động lại và giành lock trước khi xử lý tiếp. Chưa triển khai worker pool/lease heartbeat. API có retry thủ công cho job failed. Giới hạn 20 MiB/file, 200 trang, một triệu ký tự; PDF scan không có text được báo lỗi chưa hỗ trợ OCR.
 

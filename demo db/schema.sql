@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS pages (
 CREATE TABLE IF NOT EXISTS chunks (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     page_id bigint NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
-    chunk_index integer NOT NULL, text text NOT NULL,
+    chunk_index integer NOT NULL, section_path text NOT NULL DEFAULT '', text text NOT NULL,
     embedding vector(1024) NOT NULL, embedding_model text NOT NULL,
     search_vector tsvector, UNIQUE(page_id,chunk_index)
 );

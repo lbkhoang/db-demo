@@ -186,3 +186,17 @@ Demo giới hạn file 20 MiB, 200 trang và evidence compare 6500 ký tự. Wor
 Khi dữ liệu lớn, có thể thêm HNSW index cho pgvector, tách worker thành pool và dùng reranker. Khi embedding model thay đổi, cần version hóa model/dimension và chạy migration/re-index có kiểm soát.
 
 Chi tiết triển khai nằm trong [ARCHITECTURE.md](ARCHITECTURE.md), lệnh vận hành trong [RUNBOOK.md](RUNBOOK.md), và tiến độ trong [TASKS.md](TASKS.md).
+
+## Hai demo bổ sung
+
+### Chunk theo header
+
+Khi tài liệu có Markdown heading, worker có thể gom text theo cây heading thay vì cắt thuần theo số ký tự. Bật bằng `CHUNK_STRATEGY=header`; mỗi chunk giữ `section_path`, ví dụ `Leave > Request`, nên model và citation biết chunk thuộc mục nào. Strategy `page` vẫn là mặc định cho tài liệu Word/PDF hiện tại.
+
+### Agent loop retrieval
+
+`scripts/agent_loop_demo.py` là demo terminal tách riêng. Model gọi `search_documents` lần đầu, xem evidence trả về, và tự gọi lại với query hẹp hơn nếu còn thiếu dữ liệu. Mỗi vòng bị giới hạn top-k và tối đa ba lần gọi, sau đó model trả lời từ evidence đã gom. Cách này dễ quan sát trong demo và không thay đổi flow chat production một-lượt hiện tại.
+
+```powershell
+python scripts/agent_loop_demo.py "Tóm tắt HR-01 và HR-02, gồm ngày phép và remote work."
+```

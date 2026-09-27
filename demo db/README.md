@@ -62,3 +62,23 @@ Chat thường dùng version `ready` mới nhất. Compare nhận một version 
 - `healthcheck.py`: kiểm tra DB, pgvector, Ollama và embedding dimension.
 - `docs/`: nơi khách bỏ file cần demo.
 - `.env.example`: cấu hình local.
+
+## Demo chunk theo header
+
+Mặc định ingest dùng chunk theo page để giữ hành vi cũ. Để tách theo Markdown heading và lưu đường dẫn mục vào `chunks.section_path`, đặt trong `.env`:
+
+```text
+CHUNK_STRATEGY=header
+```
+
+Sau đó chạy lại `python ingest.py reset`. Ví dụ `# Leave` rồi `## Request` sẽ được lưu với section path `Leave > Request`; citation của `chat.py` cũng in section này.
+
+## Demo agent loop
+
+Agent loop minh họa cách model gọi search lần đầu, tự nhận evidence, rồi gọi search thêm khi evidence chưa đủ. Chạy từ root project khi API, PostgreSQL và Ollama đang sẵn sàng:
+
+```powershell
+python scripts/agent_loop_demo.py "Tóm tắt HR-01 và HR-02, gồm ngày phép và remote work."
+```
+
+Mỗi lần gọi search được in ra terminal; loop tối đa ba lần và cuối cùng trả lời từ toàn bộ evidence đã gom.

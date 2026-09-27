@@ -12,6 +12,7 @@ x-app: &app
     EMBED_MODEL: ${EMBED_MODEL:-qwen3-embedding:0.6b}
     CHAT_CONTEXT: ${CHAT_CONTEXT:-4096}
     CHAT_THINK: ${CHAT_THINK:-false}
+    CHUNK_STRATEGY: ${CHUNK_STRATEGY:-page}
     FILE_ROOT: /data/files
     EMBED_DIM: '1024'
   volumes:

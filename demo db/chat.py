@@ -28,12 +28,12 @@ def search(query, mode, version_ids, top_k=6):
         ids = [row["id"] for row in selected]
         if mode in ("vector", "hybrid"):
             vector = json.dumps(embed([query])[0])
-            vectors = conn.execute("""SELECT c.id AS chunk_id,c.text,p.page_number,v.id AS version_id,v.filename,
+            vectors = conn.execute("""SELECT c.id AS chunk_id,c.text,c.section_path,p.page_number,v.id AS version_id,v.filename,
                 1-(c.embedding <=> %s::vector) AS score FROM chunks c JOIN pages p ON p.id=c.page_id
                 JOIN document_versions v ON v.id=p.version_id WHERE v.id=ANY(%s)
                 ORDER BY c.embedding <=> %s::vector LIMIT 40""", (vector,ids,vector)).fetchall()
         if mode in ("keyword", "hybrid"):
-            keywords = conn.execute("""SELECT c.id AS chunk_id,c.text,p.page_number,v.id AS version_id,v.filename,
+            keywords = conn.execute("""SELECT c.id AS chunk_id,c.text,c.section_path,p.page_number,v.id AS version_id,v.filename,
                 ts_rank_cd(c.search_vector,websearch_to_tsquery('simple',unaccent(%s))) AS score
                 FROM chunks c JOIN pages p ON p.id=c.page_id JOIN document_versions v ON v.id=p.version_id
                 WHERE v.id=ANY(%s) AND c.search_vector @@ websearch_to_tsquery('simple',unaccent(%s))
@@ -60,7 +60,7 @@ def compare(old_id):
 
 def read_all(ids):
     with db() as conn:
-        return conn.execute("""SELECT c.id AS chunk_id,c.text,p.page_number,v.id AS version_id,v.filename
+        return conn.execute("""SELECT c.id AS chunk_id,c.text,c.section_path,p.page_number,v.id AS version_id,v.filename
             FROM chunks c JOIN pages p ON p.id=c.page_id JOIN document_versions v ON v.id=p.version_id
             WHERE v.id=ANY(%s) ORDER BY v.minor,p.page_number,c.chunk_index""", (ids,)).fetchall()
 
@@ -70,7 +70,7 @@ def ask(prompt, mode, version_ids, compare_id=None):
     if not sources:
         print("Chưa tìm thấy evidence.")
         return
-    evidence = "\n".join(f"[C{s['chunk_id']}] {s['filename']} page {s['page_number']}: {s['text']}" for s in sources)
+    evidence = "\n".join(f"[C{s['chunk_id']}] {s['filename']} page {s['page_number']} ({s['section_path'] or 'document'}): {s['text']}" for s in sources)
     instruction = "So sánh bản cũ và bản mới, nêu thay đổi và dẫn nguồn." if compare_id else "Trả lời ngắn gọn bằng evidence và dẫn nguồn [C<id>]. Nếu không đủ dữ liệu, nói rõ."
     with httpx.Client(base_url=OLLAMA_URL, timeout=360) as client:
         response = client.post("/api/chat", json={"model": os.getenv("CHAT_MODEL", "qwen3:4b"), "stream": False,
@@ -82,7 +82,8 @@ def ask(prompt, mode, version_ids, compare_id=None):
     print(answer)
     print("\nSources:")
     for source in sources:
-        print(f"  [C{source['chunk_id']}] {source['filename']} · page {source['page_number']}")
+        section = f" · {source['section_path']}" if source['section_path'] else ""
+        print(f"  [C{source['chunk_id']}] {source['filename']} · page {source['page_number']}{section}")
 
 
 def main():

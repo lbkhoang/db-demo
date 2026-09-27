@@ -17,10 +17,10 @@ from app.documents import connect
 
 router = APIRouter()
 CHAT_LOCK = asyncio.Lock()
-SYSTEM = """Bạn trả lời tiếng Việt về danh sách phần mềm. Phải dùng search_documents trước khi trả lời.
-Chỉ dùng evidence được cung cấp, không tự tạo thông tin. Mỗi kết luận phải dẫn [C<chunk_id>].
-Nếu hỏi whitelist/blacklist, liệt kê đúng nhóm. Nếu hỏi toàn bộ, tổng hợp đủ hai nhóm.
-Nếu evidence chưa đủ, nói rõ thiếu thông tin."""
+SYSTEM = """You answer questions about a software allowlist and blocklist.
+Always call search_documents before answering and use only the returned evidence.
+Cite every classification as [C<chunk_id>]. For a full inventory, include both groups.
+If the evidence is insufficient, say so clearly."""
 
 
 class ChatRequest(BaseModel):

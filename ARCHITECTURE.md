@@ -1,49 +1,48 @@
-﻿# Kiến trúc RAG terminal
+﻿# Architecture
 
-Demo chạy bằng Docker, chỉ dùng terminal. Người dùng upload một file, worker parse/chunk/embed, rồi terminal chat hỏi dữ liệu trong PostgreSQL + pgvector.
+## Purpose
 
-## Thành phần
+This is a terminal-only RAG demo. A user uploads a document, a worker indexes it, and a terminal client asks questions against PostgreSQL and pgvector.
 
-- FastAPI: API upload, search và chat SSE cho terminal client.
-- PostgreSQL + pgvector: lưu document, page, chunk, vector và lịch sử chat.
-- Ollama: chat model và embedding model chạy local.
-- MCP server: expose `search_documents` cho model.
-- Worker: đọc job PostgreSQL, chuyển Word/PDF sang text, chunk và embed.
+## Components
 
-## Flow
+- **FastAPI** exposes upload, search, and streaming chat endpoints.
+- **PostgreSQL + pgvector** stores document metadata, pages, chunks, embeddings, and chat history.
+- **Ollama** runs the chat and embedding models locally.
+- **MCP server** exposes the bounded `search_documents` tool to the model.
+- **Worker** converts Word/PDF files, extracts text, chunks it, embeds it, and publishes the result.
 
-1. `POST /documents` lưu một file và tạo một document/job duy nhất.
-2. Worker đọc file, tách page, chunk theo page hoặc header (`CHUNK_STRATEGY=header`), rồi lưu vector.
-3. `POST /search` hoặc terminal chat tìm hybrid/vector/keyword trên toàn bộ document ready.
-4. Model trả lời từ evidence và citation `[C<chunk_id>]`.
-5. `scripts/agent_loop_demo.py` minh họa agent gọi search thêm khi evidence chưa đủ.
+## Data flow
 
-Không có khái niệm document version hoặc compare trong schema và API. Muốn cập nhật tài liệu, xóa file cũ rồi ingest file mới.
+1. `POST /documents` stores one file and creates one ingestion job.
+2. The worker extracts pages and chunks each page. `CHUNK_STRATEGY=header` keeps Markdown heading paths in `chunks.section_path`.
+3. `POST /search` and terminal chat search all ready documents with vector, keyword, or hybrid retrieval.
+4. The model answers only from returned evidence and cites `[C<chunk_id>]`.
+5. `scripts/agent_loop_demo.py` shows an agent calling search again when the first evidence set is incomplete.
 
-## Schema
+There is no document-version or compare layer. To replace a document, remove the old record/file and ingest the new file.
 
-`migrations/schema.sql` là file SQL duy nhất, tạo:
+## Database schema
 
-- `documents`: metadata, storage path, checksum, trạng thái ingest.
-- `pages`: text theo trang.
-- `chunks`: text, `section_path`, embedding và full-text vector.
-- `ingestion_jobs`: queue và retry.
-- `conversations/messages`: lịch sử chat.
+The complete schema is in [`migrations/schema.sql`](migrations/schema.sql):
 
-Nếu database đã tạo theo schema cũ có document version, reset volume PostgreSQL trước khi chạy schema mới:
+- `documents`: file metadata, checksum, storage path, and processing status.
+- `pages`: extracted text grouped by page.
+- `chunks`: text, `section_path`, embedding, and PostgreSQL full-text vector.
+- `ingestion_jobs`: queue state, retry count, and errors.
+- `conversations` and `messages`: completed chat history and citations.
+
+If a PostgreSQL volume was created with the previous versioned schema, reset it once before starting the new schema:
 
 ```powershell
 docker compose down -v
 docker compose up -d --build
 ```
 
-## Demo phần mềm
+## Chunking
 
-File mẫu: `examples/software_list_v0.1.md`.
+`page` is the default strategy and keeps the existing page-based behavior. `header` detects Markdown headings such as `# Whitelist` and `# Blacklist`, then stores the active heading path with each chunk.
 
-```powershell
-# ingest file mẫu qua API/worker hoặc upload file tương tự
-python scripts/agent_loop_demo.py "Phần mềm uTorrent là whitelist hay blacklist?"
-python scripts/agent_loop_demo.py "Lấy toàn bộ blacklist trong danh sách phần mềm."
-python scripts/agent_loop_demo.py "Lấy tất cả phần mềm và tổng hợp blacklist hay whitelist."
-```
+## Agent loop
+
+The agent demo gives the model one tool, `search_documents`. The host executes each requested search, appends the returned evidence to the conversation, and allows up to three calls. This makes follow-up retrieval visible in the terminal without exposing SQL to the model.

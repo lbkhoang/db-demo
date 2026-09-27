@@ -1,3 +1,4 @@
+"""Document upload and ingestion-job endpoints."""
 from hashlib import sha256
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -18,6 +19,7 @@ def connect():
 
 
 def store_upload(file: UploadFile, title: str | None = None):
+    # Store the upload under a generated ID; never trust a client path.
     original = (file.filename or "").replace("\\", "/").split("/")[-1]
     suffix = Path(original).suffix.lower()
     if suffix not in {".doc", ".docx", ".pdf", ".md", ".txt"}:
@@ -42,6 +44,7 @@ def store_upload(file: UploadFile, title: str | None = None):
             raise HTTPException(422, "Title must be between 1 and 200 characters")
         basename = re.sub(r"[^\w\-]+", "_", resolved_title, flags=re.UNICODE).strip("_") or "document"
         filename = f"{basename}{suffix}"
+        # Metadata and the worker job are committed together.
         with connect() as conn:
             conn.execute("""INSERT INTO documents
                 (id,title,original_name,filename,storage_path,checksum)

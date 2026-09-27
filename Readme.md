@@ -1,15 +1,19 @@
-﻿# RAG terminal demo
+﻿# Terminal RAG Demo
 
-Project Python + Docker dùng PostgreSQL/pgvector, Ollama, MCP và FastAPI. Demo không có frontend.
+A small Docker-based RAG demo for a customer walkthrough. The demo has no frontend: all user interaction happens from the terminal.
 
-Dữ liệu mẫu nằm ở `examples/software_list_v0.1.md`, gồm whitelist và blacklist phần mềm. Hệ thống lưu một document duy nhất, chunk theo page hoặc header, embed vào PostgreSQL và trả lời qua terminal.
+The stack uses Python, FastAPI, PostgreSQL with pgvector, Ollama, MCP, and one PostgreSQL-backed ingestion worker. A document is uploaded once, split into page or header-aware chunks, embedded, and searched when a user asks a question.
 
-Các câu hỏi demo:
+## Software policy demo
+
+The sample file is [`examples/software_list_v0.1.md`](examples/software_list_v0.1.md). It contains a whitelist and a blacklist.
 
 ```powershell
-python scripts/agent_loop_demo.py "Phần mềm uTorrent là whitelist hay blacklist?"
-python scripts/agent_loop_demo.py "Lấy toàn bộ blacklist trong danh sách phần mềm."
-python scripts/agent_loop_demo.py "Lấy tất cả phần mềm và tổng hợp blacklist hay whitelist."
+Copy-Item .env.example .env
+docker compose up -d --build
+python scripts/agent_loop_demo.py "Is uTorrent whitelist or blacklist?"
+python scripts/agent_loop_demo.py "List every blacklist item."
+python scripts/agent_loop_demo.py "List every software item and classify it as whitelist or blacklist."
 ```
 
-Chi tiết kiến trúc và vận hành: [ARCHITECTURE.md](ARCHITECTURE.md), [RUNBOOK.md](RUNBOOK.md).
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and [RUNBOOK.md](RUNBOOK.md) for operational commands.

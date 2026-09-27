@@ -1,7 +1,9 @@
+"""Small, readable chunking strategies used by the ingestion worker."""
 import re
 
 
 def chunk_text(text: str, size: int = 1000, overlap: int = 100) -> list[str]:
+    # Character windows are predictable for a local demo and preserve overlap.
     if size <= 0 or overlap < 0 or overlap >= size:
         raise ValueError("Invalid chunk size/overlap")
     result, start = [], 0
@@ -42,6 +44,7 @@ def chunk_by_headers(text: str, size: int = 1600, overlap: int = 120) -> list[di
 
 
 def chunks_for_page(text: str, strategy: str = "page") -> list[dict]:
+    # Keep page chunking as the safe default; header mode adds section metadata.
     if strategy == "header":
         return chunk_by_headers(text)
     if strategy != "page":

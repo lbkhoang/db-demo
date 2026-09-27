@@ -1,3 +1,4 @@
+"""Single-process ingestion worker backed by a PostgreSQL queue."""
 import logging
 import os
 from pathlib import Path
@@ -15,6 +16,7 @@ LOCK_ID = 728402
 
 
 def process(conn, job):
+    # Embeddings are prepared before the transaction publishes any chunks.
     pages = parse_pages(Path(job["storage_path"]))
     prepared = []
     strategy = os.getenv("CHUNK_STRATEGY", "page")
@@ -39,7 +41,7 @@ def main():
     # A lost DB session aborts this process before it can publish any result.
     with psycopg.connect(connect_timeout=5, autocommit=True, row_factory=dict_row) as conn:
         if not conn.execute("SELECT pg_try_advisory_lock(%s) AS locked", (LOCK_ID,)).fetchone()["locked"]:
-            raise RuntimeError("Một worker khác đang chạy")
+            raise RuntimeError("Another worker is already running")
         with conn.transaction():
             recovered = conn.execute("""UPDATE ingestion_jobs SET status=CASE WHEN attempts>=3 THEN 'failed' ELSE 'queued' END,
                 error='Worker interrupted',updated_at=now() WHERE status='processing' RETURNING document_id,status""").fetchall()

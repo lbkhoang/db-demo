@@ -1,4 +1,4 @@
-"""Observable agent loop: the model may call search up to three times."""
+"""Observable English terminal demo: the model may search up to three times."""
 import argparse
 import json
 import os
@@ -6,19 +6,20 @@ import sys
 
 import httpx
 
-SYSTEM = """Bạn là agent hỏi đáp chính sách. Hãy dùng search_documents để lấy evidence.
-Nếu evidence chưa đủ để trả lời toàn bộ câu hỏi, hãy gọi tool lần nữa với query hẹp hơn.
-Tối đa ba lần gọi. Khi đủ dữ liệu, trả lời tiếng Việt và dẫn [C<chunk_id>]. Không bịa."""
+SYSTEM = """You are an assistant answering questions about a software allowlist and blocklist.
+Always use search_documents to collect evidence. If the evidence is incomplete, call the tool again with a narrower query.
+For a full inventory, check both whitelist and blacklist. Use at most three calls.
+Answer in English with citations such as [C123]. Never invent software or classifications."""
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("prompt", nargs="?", default="Tóm tắt HR-01 và HR-02, gồm ngày phép và remote work.")
+    parser.add_argument("prompt", nargs="?", default="List every software item and classify it as whitelist or blacklist.")
     parser.add_argument("--api", default=os.getenv("RAG_API_URL", "http://localhost:8000"))
     parser.add_argument("--model", default=os.getenv("CHAT_MODEL", "qwen3:4b"))
     args = parser.parse_args()
     messages = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": args.prompt}]
-    tools = [{"type": "function", "function": {"name": "search_documents", "description": "Tìm evidence trong tài liệu.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}}]
+    tools = [{"type": "function", "function": {"name": "search_documents", "description": "Search the software policy for evidence.", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}}]
     calls, seen = 0, set()
     ollama = os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/")
     with httpx.Client(base_url=args.api.rstrip("/"), timeout=360) as client:
@@ -45,7 +46,7 @@ def main():
             print(f"  -> {len(sources)} source(s)")
             messages.append({"role": "tool", "tool_name": "search_documents", "content": json.dumps(sources, ensure_ascii=False)})
             calls += 1
-        messages.append({"role": "system", "content": "Đã đạt giới hạn retrieval. Trả lời từ evidence đã có; nếu thiếu, nói rõ."})
+        messages.append({"role": "system", "content": "The retrieval limit has been reached. Answer from the collected evidence and state any missing information."})
         response = client.post(ollama + "/api/chat", json={"model": args.model, "messages": messages, "stream": False, "options": {"num_ctx": 4096, "temperature": 0}})
         response.raise_for_status()
         print("\nAnswer:\n" + response.json()["message"].get("content", ""))

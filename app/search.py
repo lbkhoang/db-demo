@@ -1,3 +1,4 @@
+"""Hybrid retrieval over every ready document."""
 import os
 from typing import Literal
 
@@ -35,6 +36,7 @@ def search_documents(query: str, mode: str = "hybrid", top_k: int = 6) -> dict:
             keyword_rows = conn.execute(BASE + """ AND c.search_vector @@ websearch_to_tsquery('simple',unaccent(%s))
                 ORDER BY ts_rank_cd(c.search_vector,websearch_to_tsquery('simple',unaccent(%s))) DESC,c.id LIMIT 40""",
                 (MODEL, query, query)).fetchall()
+    # Reciprocal-rank fusion lets exact keywords and semantic matches contribute.
     merged = {}
     for kind, rows in (("vector", vector_rows), ("keyword", keyword_rows)):
         for rank, row in enumerate(rows, 1):

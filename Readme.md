@@ -1,4 +1,4 @@
-mình cần 1 project docker, nền python, demo được rag,
+﻿mình cần 1 project docker, nền python, demo được rag,
 stack:
 ollama
 qwen3.6
@@ -19,4 +19,4 @@ db postgress thì lưu thông tin file, ngày up và version
 file mặc định sẽ có _v0.1 và tăng dần ở cuối tên
 demo được có thể lưu file nhiều version và reasoning giữa các version
 có thể demo được hybrid search nữa
-Current demo scope: terminal only, no frontend. The sample software policy is `demo db/docs/software_list_v0.1.md` and supports whitelist/blacklist lookup, category listing through the agent loop, and full inventory summarization.
+Current demo scope: terminal only, no frontend. The sample software policy is `examples/software_list_v0.1.md` and supports whitelist/blacklist lookup, category listing through the agent loop, and full inventory summarization.\n

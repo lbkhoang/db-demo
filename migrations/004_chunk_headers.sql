@@ -1,1 +1,0 @@
-ALTER TABLE chunks ADD COLUMN IF NOT EXISTS section_path text NOT NULL DEFAULT '';

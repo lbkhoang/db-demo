@@ -60,7 +60,7 @@ Mặc định search bản `ready` mới nhất của từng document. Bản m�
 | ingestion_jobs | id, version_id, status, attempts, updated_at, error |
 | conversations/messages | lịch sử, role, content, citations |
 
-Migration 001 tạo extension vector; migration 002 tạo documents, document_versions, pages, chunks và ingestion_jobs. Migration 003 thêm FTS với unaccent, GIN index, conversations/messages. Migration 004 thêm `chunks.section_path` cho chunk theo header. Migration đánh số, checksum, transaction và advisory lock; không phụ thuộc init script chỉ chạy một lần trên volume mới.
+File `migrations/schema.sql` tạo toàn bộ schema: pgvector, metadata/version/pages/chunks, FTS, section path, ingestion jobs và chat history. Migration đánh số, checksum, transaction và advisory lock; không phụ thuộc init script chỉ chạy một lần trên volume mới.
 
 Worker demo chạy đơn bằng PostgreSQL session advisory lock. Khi restart, nó thu hồi job processing bị gián đoạn; chỉ retry tự động tối đa 3 lần. Nếu mất session DB thì tiến trình thoát, Docker khởi động lại và giành lock trước khi xử lý tiếp. Chưa triển khai worker pool/lease heartbeat. API có retry thủ công cho job failed. Giới hạn 20 MiB/file, 200 trang, một triệu ký tự; PDF scan không có text được báo lỗi chưa hỗ trợ OCR.
 

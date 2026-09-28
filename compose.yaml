@@ -36,6 +36,8 @@ services:
   ollama:
     image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
     gpus: all
+    ports:
+      - '127.0.0.1:11434:11434'
     environment:
       OLLAMA_NUM_PARALLEL: '1'
       OLLAMA_MAX_LOADED_MODELS: '1'

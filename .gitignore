@@ -3,7 +3,6 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-data/
 # Keep the bundled batch demo input in the application image.
 !app/data/
 
